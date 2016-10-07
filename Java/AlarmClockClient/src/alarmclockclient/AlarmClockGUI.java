@@ -7,6 +7,7 @@ package alarmclockclient;
 
 import java.util.Observable;
 import java.util.Observer;
+import java.util.regex.Pattern;
 import javafx.scene.control.RadioButton;
 import javax.swing.JRadioButton;
 
@@ -28,7 +29,7 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
         data = ad;
         (new Thread(client = new Client(ad))).start();
         initComponents();
-        weekdays = new JRadioButton[]{monday, tuesday, wednesday, thursday, friday, saturday, sunday};
+        weekdays = new JRadioButton[]{sunday, monday, tuesday, wednesday, thursday, friday, saturday};
         String[] alarms = {"Alarm 1", "Alarm 2"};
         for (String s : alarms) {
             alarmSelect.addItem(s);
@@ -40,7 +41,7 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
             minuteSelect.addItem(x);
         }
         setAlarmValues();
-
+        setComboBoxValues();
     }
 
     /**
@@ -248,8 +249,8 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
     }//GEN-LAST:event_wednesdayActionPerformed
 
     private void alarmSelectItemStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_alarmSelectItemStateChanged
-        System.out.println("Item changed" + alarmSelect.getSelectedIndex());
         setDaysValues();
+        setComboBoxValues();
     }//GEN-LAST:event_alarmSelectItemStateChanged
 
 
@@ -285,9 +286,6 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
             AlarmData ad = (AlarmData) o;
             String[] alarms = ad.getAlarms();
             setAlarmValues();
-            for (String s : alarms) {
-                System.out.println(s);
-            }
         }
     }
 
@@ -321,21 +319,15 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
     private void setDaysValues() {
         int index = alarmSelect.getSelectedIndex();
         String[] daysValues = data.getDays();
-        for (String s : daysValues) {
-            System.out.println(s);
-        }
         String[] days = daysValues[index].split(",");
-        for (String s : days) {
-            System.out.println(s);
-        }
-        monday.setSelected(stringToBool(days[0]));
-        tuesday.setSelected(stringToBool(days[1]));
-        wednesday.setSelected(stringToBool(days[2]));
-        thursday.setSelected(stringToBool(days[3]));
-        friday.setSelected(stringToBool(days[4]));
-        saturday.setSelected(stringToBool(days[5]));
-        sunday.setSelected(stringToBool(days[6]));
-        getWeekdays();
+        sunday.setSelected(stringToBool(days[0]));
+        monday.setSelected(stringToBool(days[1]));
+        tuesday.setSelected(stringToBool(days[2]));
+        wednesday.setSelected(stringToBool(days[3]));
+        thursday.setSelected(stringToBool(days[4]));
+        friday.setSelected(stringToBool(days[5]));
+        saturday.setSelected(stringToBool(days[6]));
+
     }
 
     private boolean stringToBool(String s) {
@@ -362,6 +354,34 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
             }
         }
         return ret;
+    }
+
+    private void setComboBoxValues() {
+        String[] alarmValues = data.getAlarms();
+        String[] a1HM = alarmValues[0].split(Pattern.quote("."));
+        String[] a2HM = alarmValues[1].split(Pattern.quote("."));
+        if (alarmSelect.getSelectedItem() instanceof String) {
+            String index = (String) alarmSelect.getSelectedItem();
+            if (index.equals("Alarm 1")) {
+                int h = Integer.parseInt(a1HM[0]);
+                int m = Integer.parseInt(a1HM[1]);
+                if (hourSelect.getItemCount() >= h) {
+                    hourSelect.setSelectedIndex(h);
+                }
+                if (minuteSelect.getItemCount() >= m) {
+                    minuteSelect.setSelectedIndex(m);
+                }
+            } else if (index.equals("Alarm 2")) {
+                int h = Integer.parseInt(a2HM[0]);
+                int m = Integer.parseInt(a2HM[1]);
+                if (hourSelect.getItemCount() >= h) {
+                    hourSelect.setSelectedIndex(h);
+                }
+                if (minuteSelect.getItemCount() >= m) {
+                    minuteSelect.setSelectedIndex(m);
+                }
+            }
+        }
     }
 
 }
