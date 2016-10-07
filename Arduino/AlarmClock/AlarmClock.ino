@@ -73,7 +73,6 @@ void setup () {
     Serial.println("Not found");
     while (1);
   }
-  Serial.println("SFX board found");
 }
 
 void loop () {
@@ -92,13 +91,14 @@ void loop () {
       clockDisplay.writeDigitNum(3, 0);
     }
   }
-  clockDisplay.drawColon(true);
   if(alarm1Days[nextDay] || alarm2Days[nextDay]){
-    clockDisplay.writeDigitRaw(2,0x10);
+    clockDisplay.writeDigitRaw(2,0x12);
   }
-  //clockDisplay.writeDigitRaw(2,0x08);
+  else{
+    clockDisplay.writeDigitRaw(2,0x02);
+  }
   clockDisplay.writeDisplay();
-  if (alarm1H == hours && alarm1M == minutes) {
+  if (alarm1H == hours && alarm1M == minutes && alarmS == seconds) {
     sfx.playTrack(1);
   }
    if (lastMin != minutes) {
@@ -108,6 +108,10 @@ void loop () {
 }
 
 void getAlarms(){
+  Serial.print("Next Day = ");
+  Serial.print(nextDay);
+  Serial.print("  current Day = ");
+  Serial.println(days);
   if (!conn.connected()) {
     if (!conn.connect(host, port)) {
       Serial.println("Not connected");
@@ -133,12 +137,18 @@ void getAlarms(){
     alarm1M = a1M.toInt();
     alarm2H = a2H.toInt();
     alarm2M = a2M.toInt();
-    Serial.print("A1:");
-    Serial.print(a1H);
-    Serial.println(a1M);
-    Serial.print("A2:");
-    Serial.print(a2H);
-    Serial.println(a2M);
+    setAlarmDays(a1Days, alarm1Days);
+    setAlarmDays(a2Days, alarm2Days);
+    Serial.print("Alarm1 days = ");
+    for(int x = 0; x < 7; x++){
+      Serial.print(alarm1Days[x]);
+      Serial.print(",");
+    }
+    Serial.print("\nAlarm2 days = ");
+    for(int x = 0; x < 7; x++){
+      Serial.print(alarm2Days[x]);
+      Serial.print(",");
+    }
     Serial.println();
   }
   conn.stop();
