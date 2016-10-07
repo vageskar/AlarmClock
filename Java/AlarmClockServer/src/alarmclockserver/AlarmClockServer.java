@@ -12,7 +12,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 /**
- *
+ * Main class AlarmClockServer
  * @author RobinBergseth
  */
 public class AlarmClockServer{

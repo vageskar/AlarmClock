@@ -9,7 +9,7 @@ import java.util.Observable;
 import java.util.Observer;
 
 /**
- *
+ * Main class AlarmClockClient
  * @author RobinBergseth
  */
 public class MainAlarmClock {
