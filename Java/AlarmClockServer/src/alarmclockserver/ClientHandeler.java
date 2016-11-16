@@ -114,6 +114,7 @@ class ClientHandeler extends Thread {
                 }
             }
             conn.close();
+            System.out.println("conn closed");
         } catch (Exception e) {
             System.err.println(e.toString());
         }

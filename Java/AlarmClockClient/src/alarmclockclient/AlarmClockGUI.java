@@ -5,6 +5,8 @@
  */
 package alarmclockclient;
 
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.Observable;
 import java.util.Observer;
 import java.util.regex.Pattern;
@@ -31,17 +33,25 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
         initComponents();
         weekdays = new JRadioButton[]{sunday, monday, tuesday, wednesday, thursday, friday, saturday};
         String[] alarms = {"Alarm 1", "Alarm 2"};
-        for (String s : alarms) {
-            alarmSelect.addItem(s);
-        }
         for (int x = 0; x < 24; x++) {
             hourSelect.addItem(x);
         }
         for (int x = 0; x < 60; x++) {
             minuteSelect.addItem(x);
         }
+        for (String s : alarms) {
+            alarmSelect.addItem(s);
+        }
         setAlarmValues();
         setComboBoxValues();
+        this.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent evt) {
+                client.send("quit");
+                client.closeConnection();
+                System.exit(0);
+            }
+        });
     }
 
     /**
@@ -76,7 +86,9 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
         saturday = new javax.swing.JRadioButton();
         sunday = new javax.swing.JRadioButton();
 
-        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(javax.swing.WindowConstants.DO_NOTHING_ON_CLOSE);
+
+        jPanel1.setCursor(new java.awt.Cursor(java.awt.Cursor.DEFAULT_CURSOR));
 
         jLabel1.setFont(new java.awt.Font("Stylus BT", 1, 18)); // NOI18N
         jLabel1.setText("Alarm clock");
@@ -201,7 +213,7 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(alarm1Text, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(alarm2Text, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(37, 37, 37)
+                .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel4)
                     .addComponent(jLabel5)
@@ -223,7 +235,7 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
                     .addComponent(friday)
                     .addComponent(saturday)
                     .addComponent(sunday))
-                .addContainerGap(91, Short.MAX_VALUE))
+                .addContainerGap(33, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -234,7 +246,7 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
 
         pack();
@@ -251,6 +263,7 @@ public class AlarmClockGUI extends javax.swing.JFrame implements Observer {
     private void alarmSelectItemStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_alarmSelectItemStateChanged
         setDaysValues();
         setComboBoxValues();
+
     }//GEN-LAST:event_alarmSelectItemStateChanged
 
 
