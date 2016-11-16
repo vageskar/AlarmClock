@@ -102,7 +102,7 @@ class ClientHandeler extends Thread {
                         break;
                     case "shutdown":
                         conn.close();
-                        System.exit(1);
+                        System.exit(0);
                         break;
                     default:
                         outPrint = returnBadRequest();

@@ -19,7 +19,7 @@ import java.util.Scanner;
 public class Client implements Runnable {
 
     private Socket s;
-    private String host = "localhost";//"158.38.198.28";
+    private String host = "192.168.1.151";//"158.38.198.28";
     private int port = 2609;
     private PrintWriter s_out;
     private DataInputStream s_in;

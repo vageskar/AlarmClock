@@ -31,6 +31,7 @@ public class AlarmClock {
                 String line = alarms.nextLine();
                 if (line.contains("Alarm")) {
                     String[] parts = line.split(":");
+                    System.out.println(line + "Length of parts = " + parts.length);
                     if (parts[0].equals("Alarm1")) {
                         alarm1 = parts[1];
                         alarm1Days = parts[2];
