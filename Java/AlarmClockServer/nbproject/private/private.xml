@@ -3,7 +3,13 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
+<<<<<<< HEAD
             <file>file:/F:/Users/robin/Documents/Prosjekt/AlarmClock/Java/AlarmClockServer/src/alarmclockserver/AlarmClockServer.java</file>
+=======
+            <file>file:/C:/Users/RobinBergseth/Documents/Prosjekt/AlarmClock/Java/AlarmClockServer/src/alarmclockserver/ClientHandeler.java</file>
+            <file>file:/C:/Users/RobinBergseth/Documents/Prosjekt/AlarmClock/Java/AlarmClockServer/src/alarmclockserver/AlarmClockServer.java</file>
+            <file>file:/C:/Users/RobinBergseth/Documents/Prosjekt/AlarmClock/Java/AlarmClockServer/src/alarmclockserver/AlarmClock.java</file>
+>>>>>>> 654c9e5b68d589a9821c6d05bf250b182e679781
         </group>
     </open-files>
 </project-private>

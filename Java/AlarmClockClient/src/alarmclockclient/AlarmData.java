@@ -13,8 +13,8 @@ import java.util.Observable;
  */
 public class AlarmData extends Observable {
 
-    String alarm1 = "00:00";
-    String alarm2 = "00:00";
+    String alarm1 = "00.00";
+    String alarm2 = "00.00";
     String alarm1Days = "0,0,0,0,0,0,0";
     String alarm2Days = "0,0,0,0,0,0,0";
 

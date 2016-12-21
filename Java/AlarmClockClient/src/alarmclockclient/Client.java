@@ -11,6 +11,7 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Scanner;
+import javax.swing.JOptionPane;
 
 /**
  *
@@ -19,7 +20,7 @@ import java.util.Scanner;
 public class Client implements Runnable {
 
     private Socket s;
-    private String host = "localhost";//"158.38.198.28";
+    private String host = "192.168.1.151";//"158.38.198.28";
     private int port = 2609;
     private PrintWriter s_out;
     private DataInputStream s_in;
@@ -40,8 +41,8 @@ public class Client implements Runnable {
             s_out = new PrintWriter(s.getOutputStream(), true);
             s_in = new DataInputStream(s.getInputStream());
         } catch (IOException e) {
-            System.out.println(e.toString());
-            System.exit(1);
+            JOptionPane.showMessageDialog(null, "Server is not running", "Server is not running", JOptionPane.INFORMATION_MESSAGE);
+            System.exit(0);
         }
         s_out.println("Get all");
         while (run) {
@@ -64,8 +65,8 @@ public class Client implements Runnable {
                     }
                 }
             } catch (IOException e) {
-                System.out.println(e.toString());
-                System.exit(1);
+                JOptionPane.showMessageDialog(null, null, "Server is not running", JOptionPane.INFORMATION_MESSAGE);
+                System.exit(0);
             }
 
         }
@@ -82,6 +83,16 @@ public class Client implements Runnable {
 
     public void send(String s) {
         s_out.println(s);
+    }
+
+    public void closeConnection() {
+        if (s.isConnected()) {
+            try {
+                s.close();
+            } catch (IOException e) {
+                System.out.println("Can't close connection");
+            }
+        }
     }
 
 }
