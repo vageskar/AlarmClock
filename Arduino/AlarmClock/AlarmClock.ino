@@ -1,4 +1,5 @@
-// Date and time functions using a DS3231 RTC connected via I2C and Wire lib
+#include <Time.h>
+#include <TimeAlarms.h>
 #include <Wire.h>
 #include "RTClib.h"
 #include <ESP8266WiFi.h>
@@ -7,8 +8,6 @@
 #include <SoftwareSerial.h>
 #include "Adafruit_Soundboard.h"
 #include "Adafruit_MCP23008.h"
-#include <Time.h>
-#include <TimeAlarms.h>
 
 
 #define TIME_24_HOUR  true
@@ -17,192 +16,170 @@
 #define SFX_RX 13
 #define SFX_RST 14
 
-#define ALARM_OFF 0
-#define SNOOZE 1
-#define TIME 2
-#define ALARM1 3
-#define ALARM2 4
-#define SWTIME 5
+#define S_ADD 0
+#define S_HOUR 4
+#define S_MIN 5
+#define S_DEL 1
+#define S_DAY 2
+#define S_TIME 3
 
-#define BUTTONS 6
+#define TIME 0
+#define ALARM1 1
+#define ALARM2 2
+#define SNOOZE 3
+#define ALARM_OFF 4
+#define S_W_TIME 5
+
+#define NUM_OF_ALARMS 2
+#define NUM_OF_KEYWORDS 3
 
 
 RTC_DS3231 rtc;
-Adafruit_MCP23008 mcp;
 Adafruit_7segment clockDisplay = Adafruit_7segment();
 SoftwareSerial ss = SoftwareSerial(SFX_TX, SFX_RX);
 Adafruit_Soundboard sfx = Adafruit_Soundboard(&ss, NULL, SFX_RST);
+Adafruit_MCP23008 mcp;
 
-int hours = 0;
-int minutes = 0;
-int seconds = 0;
-int days = 0;
-int nextDay = 0;
-int alarm1H = 0;
-int alarm1M = 0;
-int alarm2H = 0;
-int alarm2M = 0;
-int alarmS = 0;
-int snoozeH = 0;
-int snoozeM = 0;
-int lastMin = 0;
-int btnPin = A0;
+WiFiServer server (80);
 
-unsigned long readTime = 0;
+AlarmID_t a1;
+AlarmID_t a2;
+AlarmID_t a3;
+AlarmID_t a4;
+AlarmID_t snoozeAlarm;
+AlarmID_t updateTime;
 
-boolean alarm1On = false;
-boolean alarm2On = false;
-boolean snooze = false;
-boolean snoozeAlarm = false;
-boolean alarm1Days[] = {false, false, false, false, false, false, false};
-boolean alarm2Days[] = {false, false, false, false, false, false, false};
-
-boolean btn[] = {false, false, false, false, false, false};
-boolean lbtn[] = {false, false, false, false, false, false};
+bool alarmStatus[] = {false, false, false, false, false};
+bool alarmDays[NUM_OF_ALARMS][7];
+bool buttons[] = {true, true, true, true, true, true};
+bool disp = false;
+bool alarmTrig = false;
 
 byte brightness = 12;
 
-const char* ssid = "Inteno-78FC";
-const char* password = "JNC9KIZZPR64";
+char* weekdays[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+char* weekVal[] = {"sun", "mon", "tue", "wed", "thu", "fri", "sat"};
+char* keywords[] = {"del", "days", "time"};
+const char* ssid = "Tussa_4277"; //"Telenor9813oss"; //"Inteno-78FC";
+const char* password = "znid307160439";//"zyebwozltjqbr"; //"JNC9KIZZPR64";
 
-const char* host = "192.168.1.168";
-const int port = 2609;
+int alarmHours[5] = {10, 8, 0, 0, 0};
+int alarmMins[5] = {25, 10, 30, 0, 0};
+int hours;
+int minutes;
+int days;
+int nextDay;
 
-String inLine = "";
-String daysInWeek[] = {"Sunday", "Monday", "Tuesday", "Wedneday", "Thursday", "Friday", "Saturday"};
-boolean readData = false;
+String HTTP_req = "";
 
-WiFiClient conn;
-WiFiServer server(port);
-WiFiServer http(80);
+unsigned long showTime = 0;
+unsigned long buttonRead = 0;
 
-AlarmID_t alarm1;
-AlarmID_t alarm2;
-timeDayOfWeek_t dow[] = {dowSunday, dowMonday, dowTuesday, dowWednesday, dowThursday, dowFriday, dowSaturday};
-
-void setup () {
-
-#ifndef ESP8266
-  while (!Serial); // for Leonardo/Micro/Zero
-#endif
-  pinMode(btnPin, INPUT);
+void setup() {
   Serial.begin(115200);
+  delay(10);
   if (! rtc.begin()) {
     Serial.println("Couldn't find RTC");
     while (1);
   }
   mcp.begin();
-  for (int x = 0; x < BUTTONS; x++) {
+  for(int x = 0; x < 6; x++){
     mcp.pinMode(x, INPUT);
-    mcp.pullUp(x, HIGH);  // turn on a 100K pullup internally
+    mcp.pullUp(x, HIGH);
   }
-  DateTime dt = rtc.now();
-  setTime(dt.unixtime());
-  WiFi.begin(ssid, password);
   clockDisplay.begin(DISPLAY_ADDRESS);
   clockDisplay.setBrightness(brightness); //0-15
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
+  for (int x = 0; x < NUM_OF_ALARMS; x++) {
+    for (int y = 0; y < 7; y++) {
+      alarmDays[x][y] = false;
+    }
   }
+  Serial.println();
+  Serial.println();
+  disableAlarms();
+  Serial.println("Try to connect");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("Connected");
+  server.begin();
   Serial.println(WiFi.localIP());
   ss.begin(9600);
   if (!sfx.reset()) {
     Serial.println("Not found");
     while (1);
   }
-  server.begin();
-  http.begin();
-  setAlarms();
-  Serial.println("Start");
 }
 
-void loop () {
+void loop() {
+  clockFun();
+  clientFun();
+  displayFun();
+  buttonFun();
+  disableAlarm();
+}
+
+void clockFun() {
   DateTime dt = rtc.now();
-  readBtn();
   hours = dt.hour();
-  if (!btn[SWTIME]) {
-    hours--;
-  }
   minutes = dt.minute();
-  seconds = dt.second();
   days = dt.dayOfTheWeek();
   nextDay = days == 6 ? 0 : days + 1;
-  setDisplayShow();
-  clockDisplay.writeDisplay();
-  deactivateAlarm();
-  activateSnooze();
-  getAlarms();
-  getHttpReq();
-  lastMin = minutes;
-  updateBtn();
 }
 
-void getAlarms() {
-  if (!conn.connected()) {
-    conn = server.available();
-  }
-  else if (conn.connected()) {
-    if (conn.available() > 0) {
-      char c = conn.read();
-      Serial.print(c);
-      if (c == '$') {
-        readData = true;
-      }
-      else if (c == '%') {
-        readData = false;
-        Serial.println();
-        Serial.println(inLine);
-        pharseData(inLine);
-        inLine = "";
-      }
-      else if (readData) {
-        inLine += c;
+void clientFun() {
+  WiFiClient client = server.available();
+  if (client) {
+    boolean currentLineIsBlank = true;
+    boolean firstLine = true;
+    while (client.connected()) {
+      if (client.available()) {
+        char c = client.read();
+        if (firstLine) {
+          HTTP_req += c;
+        }
+        if (c == '\n' && currentLineIsBlank) {
+          if (HTTP_req.indexOf("favicon") > -1) {
+            HTTP_req = "";
+            break;
+          }
+          parseHTTP(HTTP_req);
+          client.flush();
+          Serial.println();
+          Serial.println(HTTP_req);
+          sendHTTPResponce(client);
+          break;
+        }
+        if (c == '\n') {
+          currentLineIsBlank = true;
+          firstLine = false;
+        }
+        else if (c != '\r') {
+          currentLineIsBlank = false;
+        }
       }
     }
+    Alarm.delay(1);
   }
 }
 
-void deactivateAlarm() {
-  if (!btn[ALARM_OFF] && lbtn[ALARM_OFF]) {
-    if ((alarm1On || alarm2On) && isPlaying()) {
-      sfx.stop();
-      alarm1On = alarm1On xor alarm1On;
-      alarm2On = alarm2On xor alarm2On;
-    }
-  }
-}
-
-void playAlarm() {
-  if (!isPlaying()) {
-    sfx.playTrack(1);
-  }
-}
-
-void activateSnooze() {
-  if (!btn[SNOOZE] && lbtn[SNOOZE] && isPlaying()) {
+void disableAlarm(){
+  if(alarmTrig && !buttons[ALARM_OFF]){
     sfx.stop();
-    if (alarm1On) {
-      alarm1 = Alarm.alarmOnce(600, setOffAlarm);
-    }
-    if (alarm2On) {
-      alarm1 = Alarm.alarmOnce(600, setOffAlarm);
-    }
+    alarmTrig = false;
+  }
+  else if(alarmTrig && !buttons[SNOOZE]){
+    sfx.stop();
+    snoozeAlarm = Alarm.timerOnce(540, alarm);
+    alarmTrig = false;
   }
 }
 
-bool isPlaying() {
-  uint32_t current, total;
-  if (! sfx.trackTime(&current, &total) ) {
-    return false;
-  }
-  else {
-    return true;
-  }
-}
-
-
-void setDisplayShow() {
-  if (!btn[TIME]) {
+void displayFun() {
+  if (!buttons[TIME]) {
     int displayValue = hours * 100 + minutes;
     clockDisplay.print(displayValue, DEC);
     if (hours == 0) {
@@ -211,353 +188,206 @@ void setDisplayShow() {
         clockDisplay.writeDigitNum(3, 0);
       }
     }
-    if (alarm1Days[nextDay] || alarm2Days[nextDay]) {
-      clockDisplay.writeDigitRaw(2, 0x12);
-    }
-    else {
-      clockDisplay.writeDigitRaw(2, 0x02);
-    }
+    showTime = millis() + 1000;
+    disp = true;
   }
-  else if (!btn[ALARM1]) {
-    int displayValue = alarm1H * 100 + alarm1M;
+  else if (!buttons[ALARM1]) {
+    int displayValue = alarmHours[0] * 100 + alarmMins[0];
     clockDisplay.print(displayValue, DEC);
-    if (alarm1H == 0) {
+    if (alarmHours[0] == 0) {
       clockDisplay.writeDigitNum(1, 0);
-      if (alarm1M < 10) {
+      if (alarmMins[0] < 10) {
         clockDisplay.writeDigitNum(3, 0);
       }
     }
-    clockDisplay.writeDigitRaw(2, 0x06);
+    showTime = millis() + 1000;
+    disp = true;
   }
-  else if (!btn[ALARM2]) {
-    int displayValue = alarm2H * 100 + alarm2M;
+  else if (!buttons[ALARM2]) {
+    int displayValue = alarmHours[0] * 100 + alarmMins[0];
     clockDisplay.print(displayValue, DEC);
-    if (alarm2H == 0) {
+    if (alarmHours[0] == 0) {
       clockDisplay.writeDigitNum(1, 0);
-      if (alarm2M < 10) {
+      if (alarmMins[0] < 10) {
         clockDisplay.writeDigitNum(3, 0);
       }
     }
-    clockDisplay.writeDigitRaw(2, 10);
+    showTime = millis() + 1000;
+    disp = true;
   }
-  else {
-    clockDisplay.clear();
-  }
-}
-
-void readBtn() {
-  if ((readTime - millis()) > 60) {
-    for (int x = 0; x < BUTTONS; x++) {
-      btn[x] = mcp.digitalRead(x);
+  else if (millis() > showTime) {
+    if (disp) {
+      clockDisplay.clear();
+      disp = false;
     }
   }
+  clockDisplay.writeDisplay();
 }
 
-void updateBtn() {
-  for (int x = 0; x < BUTTONS; x++) {
-    lbtn[x] = btn[x];
-  }
-}
-
-void pharseData(String data) {
-  data.toUpperCase();
-  int nrCmd = getNumberOfCommands(data);
-  String splitData[nrCmd][2];
-  int lastCmd = 0;
-  int index = 0;
-  for (int x = 0; x < data.length(); x++) {
-    if (data.substring(x, x + 1) == "#") {
-      String temp = data.substring(lastCmd, x);
-      for (int i = 0; i < temp.length(); i++) {
-        if (temp.substring(i, i + 1) == ";") {
-          splitData[index][0] = temp.substring(0, i);
-          splitData[index][1] = temp.substring(i + 1);
-          index++;
-          break;
-        }
+void buttonFun() {
+  if(millis() > buttonRead){
+    for(int x = 0; x < 6; x++){
+      buttons[x] = mcp.digitalRead(x);
+      if(!buttons[x]){
+        Serial.println("Button" + String(x, DEC) + " pressed");
       }
     }
-  }
-  for (int x = 0; x < nrCmd; x++) {
-    String cmd = splitData[x][0];
-    if (cmd == "GET ALL") {
-      printAll();
-    }
-    else if (cmd == "TIME1") {
-      setAlarm(1, splitData[x][1]);
-    }
-    else if (cmd == "TIME2") {
-      setAlarm(2, splitData[x][1]);
-    }
-    else if (cmd == "DAYS1") {
-      setAlarmDays(1, splitData[x][1]);
-    }
-    else if (cmd == "DAYS2") {
-      setAlarmDays(2, splitData[x][1]);
-    }
+    buttonRead = millis() + 500;
   }
 }
 
-int getNumberOfCommands(String in) {
-  int nr = 0;
-  for (int x = 0; x < in.length(); x++) {
-    if (in.substring(x, x + 1) == "#") {
-      nr++;
-    }
-  }
-  return nr;
+void alarm() {
+  alarmTrig = true;
+  sfx.playTrack(1);
 }
 
-void printAll() {
-  String sendData = "$";
-  sendData += getAlarmTime();
-  sendData += getAlarmDays();
-  sendData += "%";
-  conn.print(sendData);
-}
-
-String getAlarmTime() {
-  String ret = "#TIME1;";
-  if (alarm1H < 10) {
-    ret += "0" + alarm1H;
-  }
-  else {
-    ret += alarm1H;
-  }
-  if (alarm1M < 10) {
-    ret += "0" + alarm1M;
-  }
-  else {
-    ret += alarm1M;
-  }
-  ret += "#TIME2;";
-  if (alarm2H < 10) {
-    ret += "0" + alarm2H;
-  }
-  else {
-    ret += alarm2H;
-  }
-  if (alarm2M < 10) {
-    ret += "0" + alarm2M;
-  }
-  else {
-    ret += alarm2M;
-  }
-  return ret;
-}
-
-String getAlarmDays() {
-  String ret = "#DAYS1;";
-  for (int x = 0; x < 7; x++) {
-    switch (x) {
-      case 6:
-        if (alarm1Days[x]) {
-          ret += "1";
+void sendHTTPResponce(WiFiClient cl) {
+  cl.println("HTTP/1.1 200 OK");
+  cl.println("Content-Type: text/html");
+  cl.println("Connection: close");
+  cl.println();
+  // web page
+  cl.println("<!DOCTYPE html>");
+  cl.println("<meta charset=\"UTF-8\">");
+  cl.println("<html>");
+  cl.println("<head>");
+  cl.println("<title>Alarm Clock</title>");
+  cl.println("</head>");
+  cl.println("<body>");
+  cl.println("<h2>Alarm clock</h2>");
+  cl.println("<fieldset>");
+  cl.println("<legend>Set alarm</legend>");
+  for (int x = 0; x < NUM_OF_ALARMS; x++) {
+    if (alarmStatus[x]) {
+      String timeVal = getTimeString(x);
+      cl.println("<form action=\"/A" + String(x, DEC) + "\" method=\"GET\">");
+      cl.println("<input type=\"time\" name=\"time\" value=\"" + timeVal + "\">");
+      for (int i = 0; i < 7; i++) {
+        if (alarmDays[x][i]) {
+          cl.println("<input type=\"checkbox\" name=\"days\" value=\"" + String(weekVal[i]) + "\" checked>" + String(weekdays[i]));
         }
         else {
-          ret += "0";
+          cl.println("<input type=\"checkbox\" name=\"days\" value=\"" + String(weekVal[i]) + "\">" + String(weekdays[i]));
         }
-        break;
-      default:
-        if (alarm1Days[x]) {
-          ret += "1,";
-        }
-        else {
-          ret += "0,";
-        }
-        break;
+      }
+      cl.println("<input type=\"submit\" value=\"Set alarm\">");
+      cl.println("<input type=\"submit\" name=\"del\" value=\"Delete\">");
+      cl.println("</form>");
     }
   }
-  ret += "#DAYS2;";
-  for (int x = 0; x < 7; x++) {
-    switch (x) {
-      case 6:
-        if (alarm2Days[x]) {
-          ret += "1";
-        }
-        else {
-          ret += "0";
-        }
-        break;
-      default:
-        if (alarm2Days[x]) {
-          ret += "1,";
-        }
-        else {
-          ret += "0,";
-        }
-        break;
-    }
-  }
-
-  return ret;
+  cl.println("</fieldset>");
+  cl.println("<form action=\"/add\">");
+  cl.println("<input type=\"submit\" value=\"Add alarm\">");
+  cl.println("</form>");
+  cl.println("</body>");
+  cl.println("</html>");
 }
 
-void setAlarm(int alarmNr, String timeData) {
-  switch (alarmNr) {
+void disableAlarms() {
+  Alarm.disable(a1);
+  Alarm.disable(a2);
+  Alarm.disable(a3);
+  Alarm.disable(a4);
+  Alarm.disable(snoozeAlarm);
+}
+
+void disableAlarm(int i) {
+  switch (i) {
+    case 0:
+      Alarm.disable(a1);
+      break;
     case 1:
-      for (int x = 0; x < timeData.length(); x++) {
-        if (timeData.substring(x, x + 1) == ":") {
-          alarm1H = timeData.substring(0, x).toInt();
-          alarm1M = timeData.substring(x + 1).toInt();
-          break;
-        }
-      }
+      Alarm.disable(a2);
       break;
     case 2:
-      for (int x = 0; x < timeData.length(); x++) {
-        if (timeData.substring(x, x + 1) == ":") {
-          alarm2H = timeData.substring(0, x).toInt();
-          alarm2M = timeData.substring(x + 1).toInt();
+      Alarm.disable(a3);
+      break;
+    case 3:
+      Alarm.disable(a4);
+      break;
+    case 4:
+      Alarm.disable(snoozeAlarm);
+      break;
+  }
+}
+
+void parseHTTP(String req) {
+  if (req.indexOf("/add") > -1) {
+    addAlarm();
+  }
+  else {
+    for (int x = 0; x < NUM_OF_ALARMS; x++) {
+      String alarmKey = "/A" + String(x, DEC);
+      if (req.indexOf(alarmKey) > -1) {
+        if (req.indexOf("del") > -1) {
+          alarmStatus[x] = false;
           break;
         }
-      }
-      break;
-  }
-}
-
-void setAlarmDays(int alarmNr, String timeData) {
-  int index = 0;
-  switch (alarmNr) {
-    case 1:
-      for (int x = 0; x < timeData.length(); x++) {
-        if (timeData.substring(x, x + 1) == ":") {
-          if (timeData.substring(x - 1, x) == "1") {
-            alarm1Days[index] = true;
+        else {
+          int timeIndex = req.indexOf("time=");
+          alarmHours[x] = req.substring(timeIndex + 5, timeIndex + 7).toInt();
+          alarmMins[x] = req.substring(timeIndex + 10, timeIndex + 12).toInt();
+          for (int i = 0; i < 7; i++) {
+            String daysKey = "days=" + String(weekVal[i]);
+            if (req.indexOf(daysKey) > -1) {
+              alarmDays[x][i] = true;
+            }
+            else {
+              alarmDays[x][i] = false;
+            }
           }
-          else {
-            alarm1Days[index] = false;
-          }
-          index++;
         }
       }
-      break;
-    case 2:
-      for (int x = 0; x < timeData.length(); x++) {
-        if (timeData.substring(x, x + 1) == ":") {
-          if (timeData.substring(x - 1, x) == "1") {
-            alarm2Days[index] = true;
-          }
-          else {
-            alarm2Days[index] = false;
-          }
-          index++;
-        }
-      }
-      break;
-  }
-}
-
-void setAlarms() {
-  Alarm.free(alarm1);
-  Alarm.free(alarm2);
-  for (int x = 0; x < 7; x++) {
-    if (alarm1Days[x]) {
-      alarm1 = Alarm.alarmRepeat(dow[x], alarm1H, alarm1M, 0, setOffAlarm);
     }
-    if (alarm2Days[x]) {
-      alarm2 = Alarm.alarmRepeat(dow[x], alarm2H, alarm2M, 0, setOffAlarm);
+  }
+  updateAlarms();
+}
+
+void addAlarm() {
+  for (int i = 0; i < NUM_OF_ALARMS; i++) {
+    if (!alarmStatus[i]) {
+      alarmStatus[i] = true;
+      break;
     }
   }
 }
 
-void setOffAlarm() {
-  AlarmID_t a = Alarm.getTriggeredAlarmId();
-  if (a == alarm1) {
-    alarm1On = true;
-  }
-  else if (a == alarm2) {
-    alarm2On = true;
-  }
-  playAlarm();
-}
-
-void getHttpReq() {
-  WiFiClient httpClient = http.available();
-  if (httpClient) {
-    Serial.println("New client");
-    httpClient.println("HTTP/1.1 200 OK");
-    httpClient.println("Content-Type: text/html");
-    httpClient.println();
-    httpClient.println("<HTML>");
-    httpClient.println("<HEAD>");
-    httpClient.println("<TITLE>Alarm clock status</TITLE>");
-    httpClient.println("</HEAD>");
-    httpClient.println("<BODY>");
-    httpClient.println("<H1>Alarm clock status:</H1>");
-    httpClient.println(getHttpAlarmStatus(1));
-    httpClient.println(getHttpAlarmStatus(2));
-    httpClient.println("</BODY>");
-    httpClient.println("</HEAD>");
-    httpClient.println("</HTML>");
-    httpClient.stop();
+void updateAlarms() {
+  for (int i = 0; i < NUM_OF_ALARMS; i++) {
+    if (alarmStatus[i]) {
+      switch (i) {
+        case 0:
+          a1 = Alarm.alarmRepeat(alarmHours[0], alarmMins[0], 0, alarm);
+          break;
+        case 1:
+          a2 = Alarm.alarmRepeat(alarmHours[1], alarmMins[1], 0, alarm);
+          break;
+        case 2:
+          a3 = Alarm.alarmRepeat(alarmHours[2], alarmMins[2], 0, alarm);
+          break;
+        case 3:
+          a4 = Alarm.alarmRepeat(alarmHours[3], alarmMins[3], 0, alarm);
+          break;
+      }
+    }
   }
 }
 
-String getHttpAlarmStatus(int alarmNr) {
-  String ret = "<H4>";
-  bool noDay = true;
-  switch (alarmNr) {
-    case 1:
-      ret += "Alarm 1: ";
-      if (alarm1H < 10) {
-        ret += "0";
-        ret += alarm1H;
-      }
-      else {
-        ret += alarm1H;
-      }
-      ret += ":";
-      if (alarm1M < 10) {
-        ret += "0";
-        ret += alarm1M;
-      }
-      else {
-        ret += alarm1M;
-      }
-      ret += "<br>";
-      for (int x = 0; x < 7; x++) {
-        if (alarm1Days[x]) {
-          ret += daysInWeek[x];
-          ret += "  ";
-          noDay = false;
-        }
-      }
-      if (noDay) {
-        ret += "Alarm set for no days";
-      }
-      break;
-    case 2:
-      ret += "Alarm 2: ";
-      if (alarm2H < 10) {
-        ret += "0";
-        ret += alarm2H;
-      }
-      else {
-        ret += alarm2H;
-      }
-      ret += ":";
-      if (alarm2M < 10) {
-        ret += "0";
-        ret += alarm2M;
-      }
-      else {
-        ret += alarm2M;
-      }
-      ret += "<br>";
-      for (int x = 0; x < 7; x++) {
-        if (alarm2Days[x]) {
-          ret += daysInWeek[x];
-          ret += "  ";
-          noDay = false;
-        }
-      }
-      if (noDay) {
-        ret += "Alarm set for no days";
-      }
-      break;
+String getTimeString(int index) {
+  String s = "";
+  if (alarmHours[index] < 10) {
+    s += "0" + String(alarmHours[index], DEC);
   }
-  ret += "</H4>";
-  return ret;
+  else {
+    s += String(alarmHours[index], DEC);
+  }
+  s += ":";
+  if (alarmMins[index] < 10) {
+    s += "0" + String(alarmMins[index], DEC);
+  }
+  else {
+    s += String(alarmMins[index], DEC);
+  }
+  return s;
 }
 
